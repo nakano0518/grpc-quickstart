@@ -4,9 +4,11 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	pb "github.com/nakano0518/grpc-quickstart"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func main() {
@@ -19,9 +21,10 @@ func main() {
 	c := pb.NewGreeterClient(conn)
 
 	name := os.Args[1]
-
+	md := metadata.Pairs("timestamp", time.Now().Format(time.Stamp)) //metadata(HTTP/2のHeaderに格納し運ばれる)//key-value方式(文字列型)//圧縮形式の指定や認証情報の受け渡しなどに使用
 	ctx := context.Background()
-	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name}, grpc.Trailer(&md))
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
