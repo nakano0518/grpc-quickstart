@@ -7,13 +7,16 @@ import (
 
 	pb "github.com/nakano0518/grpc-quickstart"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type server struct{}
 
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	log.Printf("Received: %v", in.Name)
-	return &pb.HelloReply{Message: "Hello " + in.Name}, nil
+	//return &pb.HelloReply{Message: "Hello " + in.Name}, nil
+	return nil, status.New(codes.NotFound, "resource not found").Err()
 }
 
 func main() {
