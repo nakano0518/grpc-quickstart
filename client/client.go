@@ -9,13 +9,19 @@ import (
 	pb "github.com/nakano0518/grpc-quickstart"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
 func main() {
 	addr := "localhost:50051"
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	creds, err := credentials.NewClientTLSFromFile("server.crt", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	//conn, err := grpc.Dial(addr, grpc.WithInsecure()) //認証せずに接続
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds)) //TLS認証で接続
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}

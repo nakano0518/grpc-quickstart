@@ -1,0 +1,4 @@
+client/server.crt
+server/private.key
+server/server.csr
+server/server.crt
