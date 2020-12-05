@@ -7,8 +7,10 @@ import (
 	"time"
 
 	pb "github.com/nakano0518/grpc-quickstart"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func main() {
@@ -26,7 +28,20 @@ func main() {
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name}, grpc.Trailer(&md))
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		//エラーの詳細情報(grpc-status-details-bin)
+		s, ok := status.FromError(err) //エラーからgrpcのstatusを取り出す
+		if ok {
+			log.Printf("gRPC Error (message: %s)", s.Message())
+			for _, d := range s.Details() { //エラーの詳細情報は、status.Details()に格納
+				switch info := d.(type) {
+				case *errdetails.RetryInfo:
+					log.Printf(" RetryInfo: %v", info)
+				}
+			}
+			os.Exit(1)
+		} else {
+			log.Fatalf("could not greet: %v", err)
+		}
 	}
 	log.Printf("Greeting: %s", r.Message)
 }
