@@ -24,8 +24,14 @@ func main() {
 
 	name := os.Args[1]
 	md := metadata.Pairs("timestamp", time.Now().Format(time.Stamp)) //metadata(HTTP/2のHeaderに格納し運ばれる)//key-value方式(文字列型)//圧縮形式の指定や認証情報の受け渡しなどに使用
-	ctx := context.Background()
+	//ctx := context.Background() //キャンセルやタイムアウトを考慮せずずっと待ち続ける(Goの仕組み)
+	ctx, cancel := context.WithCancel(context.Background()) //キャンセル可能に
+	defer cancel()
 	ctx = metadata.NewOutgoingContext(ctx, md)
+	go func() {
+		time.Sleep(1 * time.Second)
+		cancel()
+	}()
 	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name}, grpc.Trailer(&md))
 	if err != nil {
 		//エラーの詳細情報(grpc-status-details-bin)
