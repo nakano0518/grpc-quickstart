@@ -11,7 +11,6 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
@@ -37,11 +36,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	cred, err := credentials.NewServerTLSFromFile("server.crt", "private.key")
-	if err != nil {
-		log.Fatal(err)
-	}
-	s := grpc.NewServer(grpc.Creds(cred)) //TLS認証がついた形でサーバー起動
+	//TLS認証がついた形でサーバー起動
+	/*
+		cred, err := credentials.NewServerTLSFromFile("server.crt", "private.key")
+		if err != nil {
+			log.Fatal(err)
+		}
+		s := grpc.NewServer(grpc.Creds(cred))
+	*/
+	//認証せずにサーバー起動
+	s := grpc.NewServer()
 	pb.RegisterGreeterServer(s, &server{})
 	log.Printf("gRPC server listening on" + addr)
 	if err := s.Serve(lis); err != nil {
