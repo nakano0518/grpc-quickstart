@@ -9,19 +9,38 @@ import (
 	pb "github.com/nakano0518/grpc-quickstart"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
+func unaryInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	//RPCの前後で処理を挟むInterceptor(ログ出力)(他、共通処理や認証処理などを記述するのに便利)
+	log.Printf("before call: %s, request: %+V", method, req)
+	err := invoker(ctx, method, req, reply, cc, opts...)
+	log.Printf("after call: %s, response: %+v", method, reply)
+	return err
+}
+
 func main() {
 	addr := "localhost:50051"
-	creds, err := credentials.NewClientTLSFromFile("server.crt", "")
-	if err != nil {
-		log.Fatal(err)
-	}
-	//conn, err := grpc.Dial(addr, grpc.WithInsecure()) //認証せずに接続
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds)) //TLS認証で接続
+
+	/*
+		//TLS認証で接続
+			creds, err := credentials.NewClientTLSFromFile("server.crt", "")
+			if err != nil {
+				log.Fatal(err)
+			}
+			conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
+	*/
+
+	/*
+		//認証せずに接続
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	*/
+
+	//認証せずに接続時Interceptorを使用
+	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithUnaryInterceptor(unaryInterceptor))
+
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
