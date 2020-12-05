@@ -10,19 +10,62 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/status"
 )
 
-func unaryInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	//RPCの前後で処理を挟むInterceptor(ログ出力)(他、共通処理や認証処理などを記述するのに便利)
-	log.Printf("before call: %s, request: %+V", method, req)
-	err := invoker(ctx, method, req, reply, cc, opts...)
-	log.Printf("after call: %s, response: %+v", method, reply)
-	return err
+/*
+	func unaryInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		//RPCの前後で処理を挟むInterceptor(ログ出力)(他、共通処理や認証処理などを記述するのに便利)
+		log.Printf("before call: %s, request: %+V", method, req)
+		err := invoker(ctx, method, req, reply, cc, opts...)
+		log.Printf("after call: %s, response: %+v", method, reply)
+		return err
+	}
+*/
+
+//Resolver
+type exampleResolverBuilder struct{}
+
+func (*exampleResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
+	r := &exampleResolver{
+		target: target,
+		cc:     cc,
+		addrsStore: map[string][]string{
+			"example": {"localhost:50051", "localhost:50052"},
+		},
+	}
+	r.start()
+	return r, nil
 }
 
+func (*exampleResolverBuilder) Scheme() string { return "testScheme" }
+
+type exampleResolver struct {
+	target     resolver.Target
+	cc         resolver.ClientConn
+	addrsStore map[string][]string
+}
+
+func (r *exampleResolver) start() {
+	addrStrs := r.addrsStore[r.target.Endpoint]
+	addrs := make([]resolver.Address, len(addrStrs))
+	for i, s := range addrStrs {
+		addrs[i] = resolver.Address{Addr: s}
+	}
+	r.cc.UpdateState(resolver.State{Addresses: addrs})
+}
+
+func (*exampleResolver) ResolveNow(o resolver.ResolveNowOption) {}
+func (*exampleResolver) Close()                                 {}
+
 func main() {
-	addr := "localhost:50051"
+	//addr := "localhost:50051"
+
+	//Resolverを用いてclient-loadbalancingを実現(localhost:50051とlocalhost:50052をtestScheme:///exampleという名前で登録しラウンドロビン方式で切り替える)
+	resolver.Register(&exampleResolverBuilder{})
+	addr := "testScheme:///example"
+	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBalancerName("round_robin"))
 
 	/*
 		//TLS認証で接続
@@ -39,7 +82,7 @@ func main() {
 	*/
 
 	//認証せずに接続時Interceptorを使用
-	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithUnaryInterceptor(unaryInterceptor))
+	// conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithUnaryInterceptor(unaryInterceptor))
 
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
